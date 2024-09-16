@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: my-telegram-bot
-    env: node
-    buildCommand: "npm install"
-    startCommand: "node index.js"
-    plan: free
-    port: 10000
