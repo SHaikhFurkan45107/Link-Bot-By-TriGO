@@ -1,0 +1,2 @@
+run = "node bot.js"
+modules = ["nodejs-20"]
