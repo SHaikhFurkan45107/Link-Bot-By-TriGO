@@ -1,1 +1,8 @@
-404: Not Found
+services:
+  - type: web
+    name: my-telegram-bot
+    env: node
+    buildCommand: "npm install"
+    startCommand: "node bot.js"
+    plan: free
+    autoDeploy: true
