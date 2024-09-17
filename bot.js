@@ -7,6 +7,18 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const moment = require('moment');
 const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Serve a basic route to check if the server is running
+app.get('/', (req, res) => {
+    res.send('Bot is running!');
+});
+
+// Start the express server
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
 
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
