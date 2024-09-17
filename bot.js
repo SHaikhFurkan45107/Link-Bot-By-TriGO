@@ -1,15 +1,40 @@
+const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+const bodyParser = require('body-parser');
+
 // Load environment variables
 require('dotenv').config();
 
-const TelegramBot = require('node-telegram-bot-api');
-const axios = require('axios');
-const moment = require('moment'); // For handling date and time
-
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
+const bot = new TelegramBot(TOKEN);
 
-// Webhook URL (replace with your Render.com URL)
-const WEBHOOK_URL = 'https://link-bot-by-trigo.onrender.com' + TOKEN; 
+// Create an Express app
+const app = express();
+app.use(bodyParser.json());
+
+// Set up a route for the webhook
+app.post('/webhook', (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// Set the webhook for the Telegram bot
+const setWebhook = async () => {
+  try {
+    await bot.setWebHook('https://your-domain.com/webhook');
+    console.log('Webhook set!');
+  } catch (error) {
+    console.error('Error setting webhook:', error);
+  }
+};
+setWebhook();
+
+// Start the Express server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 // List of admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
