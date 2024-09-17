@@ -246,25 +246,29 @@ bot.onText(/\/tlink/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
 
-  // Increment user usage count and store user ID
-  if (!usedUsers.has(userId)) {
-    userUsageCount++;
-    usedUsers.add(userId);
+  // Initialize or reset user link generation count
+  if (!userLinkGeneration[userId]) {
+    userLinkGeneration[userId] = { count: 0, resetDate: moment().startOf('day').toDate() };
   }
 
+  const userGeneration = userLinkGeneration[userId];
+
   // Reset user link generation count if needed
-  resetUserLinkGeneration();
+  if (moment().startOf('day').toDate() > userGeneration.resetDate) {
+    userGeneration.count = 0;
+    userGeneration.resetDate = moment().startOf('day').toDate();
+  }
 
   // Check if the user is an admin
   if (!isAdmin(userId)) {
     // Check if the user has exceeded the daily limit
-    const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
     if (userGeneration.count >= 7) {
       return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
     }
 
     // Increment the user's link generation count
-    userLinkGeneration[userId] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+    userGeneration.count += 1;
+    userLinkGeneration[userId] = userGeneration;
   }
 
   // Build a formatted section list
