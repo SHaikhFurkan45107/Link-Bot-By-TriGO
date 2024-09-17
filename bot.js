@@ -157,7 +157,6 @@ const handleChannelRequest = async (msg, sectionName) => {
 
   bot.sendMessage(chatId, channelList, { parse_mode: 'HTML' });
 
-  // Save state to handle multiple requests
   bot.once('message', async (response) => {
     const selectedChannel = sectionChannels.find(channel => channel.name.toLowerCase().includes(response.text.toLowerCase()));
     if (selectedChannel) {
@@ -165,13 +164,11 @@ const handleChannelRequest = async (msg, sectionName) => {
       if (inviteLink) {
         activeLinks[chatId] = { channelId: selectedChannel.id, inviteLink };
 
-        // Send the generated link message
         const linkMessage = `🔗 <b>Your exclusive invite link:</b> <code>${inviteLink}</code>
 ⏳ <i>This link expires in <b>5 minutes</b>, so join quickly before it’s too late!</i>`;
 
         const linkMessageSent = await bot.sendMessage(chatId, linkMessage, { parse_mode: 'HTML' });
 
-        // Send the further link generation message in a separate message
         const furtherLinkMessage = `💡 Want more links? Click "Yes" below to get more links or "No" to end the session. 💡`;
 
         const furtherLinkMessageSent = await bot.sendMessage(chatId, furtherLinkMessage, {
@@ -184,38 +181,31 @@ const handleChannelRequest = async (msg, sectionName) => {
           }
         });
 
-        // Store message IDs to delete later
         const messageId = furtherLinkMessageSent.message_id;
         const linkMessageId = linkMessageSent.message_id;
 
-        // Revoke the invite link after 5 minutes
         setTimeout(async () => {
           await revokeInviteLink(selectedChannel.id, inviteLink);
           bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired! 🕓</b>`, { parse_mode: 'HTML' });
           delete activeLinks[chatId];
         }, 300000);  // 5 minutes
 
-        // Handle callback queries for generating more links or ending the session
-        bot.on('callback_query', async (callbackQuery) => {
+        bot.once('callback_query', async (callbackQuery) => {
           const chatId = callbackQuery.message.chat.id;
           const data = callbackQuery.data;
 
-          // Delete the message with further link options
           await bot.deleteMessage(chatId, messageId);
 
           if (data === 'more_links') {
-            // Check if the user has reached their daily limit
             if (!isAdmin(callbackQuery.from.id)) {
               const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
               if (userGeneration.count >= 7) {
                 return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
               }
 
-              // Increment the user's link generation count
               userLinkGeneration[callbackQuery.from.id] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
             }
 
-            // Restart the process to generate more links
             bot.sendMessage(chatId, '✨ <b>Select your section to get more links:</b> ✨', { parse_mode: 'HTML' });
 
             let sectionList = 
@@ -253,33 +243,11 @@ const handleChannelRequest = async (msg, sectionName) => {
 // Command: /tlink
 bot.onText(/\/tlink/, async (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
 
-  // Increment user usage count and store user ID
-  if (!usedUsers.has(userId)) {
-    userUsageCount++;
-    usedUsers.add(userId);
-  }
+  bot.sendMessage(chatId, '✨ <b>Select a section to get invite links:</b> ✨', { parse_mode: 'HTML' });
 
-  // Reset user link generation count if needed
-  resetUserLinkGeneration();
-
-  // Check if the user is an admin
-  if (!isAdmin(userId)) {
-    // Check if the user has exceeded the daily limit
-    const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
-    if (userGeneration.count >= 7) {
-      return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
-    }
-
-    // Increment the user's link generation count
-    userLinkGeneration[userId] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
-  }
-
-  // Build a formatted section list
-  let sectionList = `
-✨ <b><u>Select Your Section to Get an Invite Link</u></b> ✨
-📋 <i>Pick one from the sections below:</i>\n`;
+  let sectionList = 
+`📋 <i>Pick one from the sections below:</i>\n`;
 
   Object.keys(SECTIONS).forEach((section) => {
     sectionList += `🔹 <code>${section}</code>\n`;
@@ -337,29 +305,31 @@ bot.onText(/\/revokeall/, async (msg) => {
   bot.sendMessage(msg.chat.id, '🔄 <b>All active invite links have been revoked.</b>', { parse_mode: 'HTML' });
 });
 
-// Admin-only command: /broadcast
+// Command: /broadcast
 bot.onText(/\/broadcast (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
   const userId = msg.from.id;
+  const messageText = match[1];
+
   if (!isAdmin(userId)) {
-    return bot.sendMessage(msg.chat.id, '🚫 <b>You are not authorized to use this command.</b>', { parse_mode: 'HTML' });
+    return bot.sendMessage(chatId, '❌ <b>You don’t have permission to use this command.</b> Only admins can broadcast messages. 🚫', { parse_mode: 'HTML' });
   }
 
-  const messageText = match[1];
-  for (const user of usedUsers) {
+  const usersToSend = Array.from(usedUsers); // Use Set to avoid duplicates
+
+  for (const user of usersToSend) {
     try {
-      await bot.sendMessage(user, messageText, { parse_mode: 'HTML' });
+      await bot.sendMessage(user, `📢 <b>Broadcast message:</b>\n\n${messageText}`, { parse_mode: 'HTML' });
     } catch (error) {
+      console.error(`⚠️ Error sending message to user ${user}: ${error.message}`);
       if (error.response && error.response.statusCode === 403) {
-        // If error code 403, it's possible the user has blocked the bot
-        blockedUsers.add(user);
-        console.log(`User ${user} has blocked the bot.`);
-      } else {
-        console.error(`Failed to broadcast message to user ${user}: ${error.message}`);
+        console.log(`User ${user} blocked the bot. Removing from broadcast list.`);
+        usedUsers.delete(user); // Remove user from the broadcast list
       }
     }
   }
 
-  bot.sendMessage(msg.chat.id, '📣 <b>Broadcast message sent to all users.</b>', { parse_mode: 'HTML' });
+  bot.sendMessage(chatId, '📢 <b>Broadcast message sent to all users.</b> ✅', { parse_mode: 'HTML' });
 });
 
 // Command: /start
