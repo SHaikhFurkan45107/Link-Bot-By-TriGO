@@ -136,11 +136,6 @@ const resetUserLinkGeneration = () => {
 // Admin check function
 const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
-// Store active invite links and users who used the bot
-let activeLinks = {}; // Structure: { chatId: { channelId, inviteLink } }
-const usedUsers = new Set(); // Track users who used the bot
-const blockedUsers = new Set();
-
 // Function to handle user's request within a section and offer more links
 const handleChannelRequest = async (msg, sectionName) => {
   const chatId = msg.chat.id;
