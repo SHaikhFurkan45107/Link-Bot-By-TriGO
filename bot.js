@@ -1,8 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const bodyParser = require('body-parser');
-
-// Load environment variables
+const axios = require('axios');
+const moment = require('moment');
 require('dotenv').config();
 
 // Telegram Bot Token
@@ -66,7 +66,7 @@ const SECTIONS = {
     { name: 'NYTS Test Series', id: '-1002203041240' },
     { name: 'Manthan Test Series', id: '-1002162784672' }
   ],
-  'Lectures Channels': [  // New Section
+  'Lectures Channels': [
     { name: 'Lakshya NEET 1.0 2025', id: '-1002075382372' },
     { name: 'Lakshya NEET 3.0 2025', id: '-1002186935804' },
     { name: 'Anand Mani MBBS Lectures', id: '-1002153754909' },
@@ -200,44 +200,21 @@ const handleChannelRequest = async (msg, sectionName) => {
             if (!isAdmin(callbackQuery.from.id)) {
               const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
               if (userGeneration.count >= 7) {
-                return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
+                bot.sendMessage(chatId, '🚫 <b>You have reached your daily limit of 7 links.</b>', { parse_mode: 'HTML' });
+                return;
               }
-
-              // Increment the user's link generation count
-              userLinkGeneration[callbackQuery.from.id] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+              userGeneration.count += 1;
+              userLinkGeneration[callbackQuery.from.id] = userGeneration;
             }
 
-            // Restart the process to generate more links
-            bot.sendMessage(chatId, '✨ <b>Select your section to get more links:</b> ✨', { parse_mode: 'HTML' });
-
-            let sectionList = 
-`📋 <i>Pick one from the sections below:</i>\n`;
-
-            Object.keys(SECTIONS).forEach((section) => {
-              sectionList += `🔹 <code>${section}</code>\n`;
-            });
-
-            bot.sendMessage(chatId, sectionList, { parse_mode: 'HTML' });
-
-            bot.once('message', async (response) => {
-              const selectedSection = Object.keys(SECTIONS).find(section => section.toLowerCase() === response.text.toLowerCase());
-              if (selectedSection) {
-                handleChannelRequest(callbackQuery.message, selectedSection);
-              } else {
-                bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
-              }
-            });
-
+            // Ask the user to select a channel again
+            bot.sendMessage(chatId, `✨ <b><u>Select a Channel from ${sectionName}</u></b> ✨\n📋 <i>Pick one from the options below:</i>`, { parse_mode: 'HTML' });
+            handleChannelRequest(msg, sectionName); // Handle the new request
           } else if (data === 'end_session') {
-            bot.sendMessage(chatId, '🚪 <b>You have ended the link generation session.</b> Thank you!', { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, '🔚 <b>Session ended. Thank you!</b>', { parse_mode: 'HTML' });
           }
         });
-
-      } else {
-        bot.sendMessage(chatId, '⚠️ <b>Oops! Something went wrong while generating the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
       }
-    } else {
-      bot.sendMessage(chatId, '❌ <b>Invalid channel name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
     }
   });
 };
