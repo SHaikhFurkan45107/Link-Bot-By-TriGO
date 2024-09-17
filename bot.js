@@ -196,6 +196,7 @@ const handleChannelRequest = async (msg, sectionName) => {
               if (userGeneration.count >= 7) {
                 return bot.sendMessage(chatId, '❌ <b>You have reached the daily limit of generating 7 links.</b> Please try again tomorrow.', { parse_mode: 'HTML' });
               }
+
               userGeneration.count += 1;
               userLinkGeneration[callbackQuery.from.id] = userGeneration;
             }
