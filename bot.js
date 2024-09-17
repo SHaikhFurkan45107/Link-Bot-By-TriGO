@@ -76,9 +76,13 @@ const SECTIONS = {
 // Store active invite links and users who used the bot
 let activeLinks = {};
 const usedUsers = new Set();
+const blockedUsers = new Set();
 
 // Track user's link generation
 const userLinkGeneration = {};
+
+// Initialize userUsageCount
+let userUsageCount = 0; // This will track the total number of link generations
 
 // Function: Create a unique invite link for the channel
 const createInviteLink = async (channelId) => {
