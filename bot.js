@@ -295,13 +295,19 @@ bot.onText(/\/stats/, async (msg) => {
 // Admin-only command: /revokeall
 bot.onText(/\/revokeall/, async (msg) => {
   const userId = msg.from.id;
+  
+  // Check if the user is an admin
   if (!isAdmin(userId)) {
     return bot.sendMessage(msg.chat.id, '🚫 <b>You are not authorized to use this command.</b>', { parse_mode: 'HTML' });
   }
 
   // Revoke all active invite links
   await revokeAllInviteLinks();
-  activeLinks = {};  // Clear the active links
+  
+  // Clear the activeLinks object after revoking
+  activeLinks = {};
+  
+  // Notify the admin
   bot.sendMessage(msg.chat.id, '🔄 <b>All active invite links have been revoked.</b>', { parse_mode: 'HTML' });
 });
 
