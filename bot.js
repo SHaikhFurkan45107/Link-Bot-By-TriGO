@@ -13,14 +13,16 @@ const TOKEN = process.env.TOKEN;
 // List of admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170];
 
-// Initialize the bot
-const bot = new TelegramBot(TOKEN);
-
 // Define your webhook URL
 const webhookUrl = 'https://your-render-app-url.com/bot'; // Replace with your actual URL
 
+// Initialize the bot with webhook
+const bot = new TelegramBot(TOKEN);
+
 // Set the webhook
-bot.setWebHook(`${webhookUrl}/bot${TOKEN}`);
+bot.setWebHook(`${webhookUrl}/bot${TOKEN}`)
+  .then(() => console.log('Webhook is set up'))
+  .catch(error => console.error('Error setting webhook:', error));
 
 // Express server setup
 const app = express();
