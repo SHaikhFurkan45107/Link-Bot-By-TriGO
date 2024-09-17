@@ -75,6 +75,7 @@ const SECTIONS = {
 
 // Store active invite links and users who used the bot
 let activeLinks = {}; // Structure: { chatId: { channelId, inviteLink } }
+const usedUsers = new Set(); // To track users who used the bot
 let userLinkGeneration = {}; // Structure: { userId: { count, resetDate } }
 
 // Admin check function
