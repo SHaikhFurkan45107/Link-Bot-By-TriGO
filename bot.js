@@ -36,7 +36,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// List of admin user IDs
+// Admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
 
 // Sections with channels
@@ -75,28 +75,27 @@ const SECTIONS = {
 
 // Store active invite links and users who used the bot
 let activeLinks = {}; // Structure: { chatId: { channelId, inviteLink } }
-let userUsageCount = 0;
-const usedUsers = new Set(); // To track users who used the bot
+let userLinkGeneration = {}; // Structure: { userId: { count, resetDate } }
 
-// Track user's link generation
-const userLinkGeneration = {}; // Structure: { userId: { count, resetDate } }
+// Admin check function
+const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
-// Function: Create a unique invite link for the channel
+// Create a unique invite link for the channel
 const createInviteLink = async (channelId) => {
   try {
     const response = await axios.post(`https://api.telegram.org/bot${TOKEN}/createChatInviteLink`, {
       chat_id: channelId,
-      expire_date: Math.floor(Date.now() / 1000) + 300,  // Link expires in 5 minutes
-      member_limit: 1  // One user per invite link
+      expire_date: Math.floor(Date.now() / 1000) + 300, // Link expires in 5 minutes
+      member_limit: 1
     });
     return response.data.result.invite_link;
   } catch (error) {
-    console.error(`⚠️ Error creating invite link: ${error.message}`);
+    console.error(`Error creating invite link: ${error.message}`);
     return null;
   }
 };
 
-// Function: Revoke an invite link for the specified channel
+// Revoke an invite link for the specified channel
 const revokeInviteLink = async (channelId, inviteLink) => {
   try {
     await axios.post(`https://api.telegram.org/bot${TOKEN}/revokeChatInviteLink`, {
@@ -104,18 +103,18 @@ const revokeInviteLink = async (channelId, inviteLink) => {
       invite_link: inviteLink
     });
   } catch (error) {
-    console.error(`⚠️ Error revoking invite link: ${error.message}`);
+    console.error(`Error revoking invite link: ${error.message}`);
   }
 };
 
-// Function: Revoke all active invite links
+// Revoke all active invite links
 const revokeAllInviteLinks = async () => {
   for (const { channelId, inviteLink } of Object.values(activeLinks)) {
     await revokeInviteLink(channelId, inviteLink);
   }
 };
 
-// Function: Reset user link generation count daily
+// Reset user link generation count daily
 const resetUserLinkGeneration = () => {
   const today = moment().startOf('day').toDate();
   for (const userId in userLinkGeneration) {
@@ -125,10 +124,7 @@ const resetUserLinkGeneration = () => {
   }
 };
 
-// Admin check function
-const isAdmin = (userId) => ADMIN_IDS.includes(userId);
-
-// Function to handle user's request within a section and offer more links
+// Handle user’s request within a section and offer more links
 const handleChannelRequest = async (msg, sectionName) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -136,12 +132,10 @@ const handleChannelRequest = async (msg, sectionName) => {
   let sectionChannels = SECTIONS[sectionName];
 
   if (!sectionChannels) {
-    return bot.sendMessage(chatId, '❌ <b>Oops! Invalid section name!</b> Please try again. 🌟', { parse_mode: 'HTML' });
+    return bot.sendMessage(chatId, '❌ <b>Invalid section name! Please try again.</b>', { parse_mode: 'HTML' });
   }
 
-  let channelList = 
-`✨ <b><u>Select a Channel from ${sectionName}</u></b> ✨
-📋 <i>Pick one from the options below:</i>\n`;
+  let channelList = `✨ <b><u>Select a Channel from ${sectionName}</u></b> ✨\n📋 <i>Pick one from the options below:</i>\n`;
 
   sectionChannels.forEach((channel) => {
     channelList += `🔹 <code>${channel.name}</code>\n`;
@@ -158,12 +152,11 @@ const handleChannelRequest = async (msg, sectionName) => {
         activeLinks[chatId] = { channelId: selectedChannel.id, inviteLink };
 
         // Send the generated link message
-        const linkMessage = `🔗 <b>Your exclusive invite link:</b> <code>${inviteLink}</code>
-⏳ <i>This link expires in <b>5 minutes</b>, so join quickly before it’s too late!</i>`;
+        const linkMessage = `🔗 <b>Your exclusive invite link:</b> <code>${inviteLink}</code>\n⏳ <i>This link expires in <b>5 minutes</b>, so join quickly before it’s too late!</i>`;
 
         const linkMessageSent = await bot.sendMessage(chatId, linkMessage, { parse_mode: 'HTML' });
 
-        // Send the further link generation message in a separate message
+        // Send further link generation message in a separate message
         const furtherLinkMessage = `💡 Want more links? Click "Yes" below to get more links or "No" to end the session. 💡`;
 
         const furtherLinkMessageSent = await bot.sendMessage(chatId, furtherLinkMessage, {
@@ -183,9 +176,9 @@ const handleChannelRequest = async (msg, sectionName) => {
         // Revoke the invite link after 5 minutes
         setTimeout(async () => {
           await revokeInviteLink(selectedChannel.id, inviteLink);
-          bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired! 🕓</b>`, { parse_mode: 'HTML' });
+          bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired!</b>`, { parse_mode: 'HTML' });
           delete activeLinks[chatId];
-        }, 300000);  // 5 minutes
+        }, 300000); // 5 minutes
 
         // Handle callback queries for generating more links or ending the session
         bot.on('callback_query', async (callbackQuery) => {
@@ -200,21 +193,23 @@ const handleChannelRequest = async (msg, sectionName) => {
             if (!isAdmin(callbackQuery.from.id)) {
               const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
               if (userGeneration.count >= 7) {
-                bot.sendMessage(chatId, '🚫 <b>You have reached your daily limit of 7 links.</b>', { parse_mode: 'HTML' });
-                return;
+                return bot.sendMessage(chatId, '❌ <b>You have reached the daily limit of generating 7 links.</b> Please try again tomorrow.', { parse_mode: 'HTML' });
               }
               userGeneration.count += 1;
               userLinkGeneration[callbackQuery.from.id] = userGeneration;
             }
 
-            // Ask the user to select a channel again
-            bot.sendMessage(chatId, `✨ <b><u>Select a Channel from ${sectionName}</u></b> ✨\n📋 <i>Pick one from the options below:</i>`, { parse_mode: 'HTML' });
-            handleChannelRequest(msg, sectionName); // Handle the new request
+            // Handle channel request again for more links
+            handleChannelRequest(callbackQuery.message, sectionName);
           } else if (data === 'end_session') {
-            bot.sendMessage(chatId, '🔚 <b>Session ended. Thank you!</b>', { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, '✅ <b>Session ended. If you need more links, please use the command again.</b>', { parse_mode: 'HTML' });
           }
         });
+      } else {
+        bot.sendMessage(chatId, '⚠️ <b>Sorry, there was an error generating the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
       }
+    } else {
+      bot.sendMessage(chatId, '❌ <b>Invalid channel name selected. Please try again.</b>', { parse_mode: 'HTML' });
     }
   });
 };
@@ -269,21 +264,6 @@ bot.onText(/\/tlink/, async (msg) => {
 // Handle errors
 bot.on('polling_error', (error) => {
   console.error(`⚠️ Polling Error: ${error.message}`);
-});
-
-// Set up Express server for webhook handling
-const express = require('express');
-const app = express();
-
-app.use(express.json());
-
-app.post('/' + TOKEN, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
-});
-
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`Server is running on port ${process.env.PORT || 3000}`);
 });
 
 // Admin-only command: /stats
