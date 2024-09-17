@@ -3,16 +3,38 @@ require('dotenv').config();
 
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
-const moment = require('moment'); // For handling date and time
+const express = require('express');
+const bodyParser = require('body-parser');
+const moment = require('moment');
 
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
 
 // List of admin user IDs
-const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
+const ADMIN_IDS = [6020805369, 6013132170];
 
 // Initialize the bot
-const bot = new TelegramBot(TOKEN, { polling: true });
+const bot = new TelegramBot(TOKEN);
+
+// Define your webhook URL
+const webhookUrl = 'https://your-render-app-url.com/bot'; // Replace with your actual URL
+
+// Set the webhook
+bot.setWebHook(`${webhookUrl}/bot${TOKEN}`);
+
+// Express server setup
+const app = express();
+app.use(bodyParser.json());
+
+app.post(`/bot${TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
 
 // Sections with channels
 const SECTIONS = {
