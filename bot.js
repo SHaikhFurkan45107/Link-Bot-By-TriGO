@@ -1,81 +1,51 @@
 // Load environment variables
 require('dotenv').config();
-const express = require('express');
+
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
-const express = require('express');
-const bodyParser = require('body-parser');
-const moment = require('moment');
-
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Serve a basic route to check if the server is running
-app.get('/', (req, res) => {
-    res.send('Bot is running!');
-});
-
-// Start the express server
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+const moment = require('moment'); // For handling date and time
 
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
 
 // List of admin user IDs
-const ADMIN_IDS = [6020805369, 6013132170];
+const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
 
-// Define your webhook URL
-const webhookUrl = 'https://link-bot-by-trigo.onrender.com'; // Replace with your actual Render URL
-
-// Initialize the bot with webhook
-const bot = new TelegramBot(TOKEN, { webHook: true });
-bot.setWebHook(`${webhookUrl}/bot${TOKEN}`)
-    .then(() => console.log('Webhook is set up'))
-    .catch(error => console.error('Error setting webhook:', error));
-
-// Express server setup
-app.use(bodyParser.json());
-
-// Route to handle Telegram webhook updates
-app.post(`/bot${TOKEN}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-});
+// Initialize the bot
+const bot = new TelegramBot(TOKEN, { polling: true });
 
 // Sections with channels
 const SECTIONS = {
-    'Alien Test Series': [
-        { name: 'Alien NEET Test Series', id: '-1002224862570' },
-        { name: 'Alien Nurture 11th', id: '-1002216495058' },
-        { name: 'Alien JEE Test Series', id: '-1002024377118' },
-        { name: 'Alien Chapter Wise Test', id: '-1001995980597' },
-    ],
-    'PW Test Series': [
-        { name: 'PW AITS Test', id: '-1002068523195' },
-        { name: 'MIP Test Series', id: '-1002197193723' },
-        { name: 'Lakshya NEET Tests', id: '-1002088979826' },
-        { name: 'Arjuna NEET Tests', id: '-1002087786928' },
-        { name: 'Yakeen NEET Tests', id: '-1002093330892' },
-    ],
-    'Other Institute Tests': [
-        { name: 'NEET KAKA JEE', id: '-1002228026902' },
-        { name: 'NEET KAKA GSB', id: '-1001890104575' },
-        { name: 'NNTS NEET KAKA JEE', id: '-1002072452401' },
-        { name: 'Aakash Test Series', id: '-1002039007496' },
-        { name: 'Newlight Test Series', id: '-1002234111514' },
-        { name: 'CLC Test Series', id: '-1002157233091' },
-        { name: 'Memoneet Test Series', id: '-1002248481833' },
-        { name: 'NEET PREP Tests', id: '-1002031105605' },
-        { name: 'NYTS Test Series', id: '-1002203041240' },
-        { name: 'Manthan Test Series', id: '-1002162784672' },
-    ],
-    'Lectures Channels': [
-        { name: 'Lakshya NEET 1.0 2025', id: '-1002075382372' },
-        { name: 'Lakshya NEET 3.0 2025', id: '-1002186935804' },
-        { name: 'Anand Mani MBBS Lectures', id: '-1002153754909' },
-    ],
+  'Alien Test Series': [
+    { name: 'Alien NEET Test Series', id: '-1002224862570' },
+    { name: 'Alien Nurture 11th', id: '-1002216495058' },
+    { name: 'Alien JEE Test Series', id: '-1002024377118' },
+    { name: 'Alien Chapter Wise Test', id: '-1001995980597' },
+  ],
+  'PW Test Series': [
+    { name: 'PW AITS Test', id: '-1002068523195' },
+    { name: 'MIP Test Series', id: '-1002197193723' },
+    { name: 'Lakshya NEET Tests', id: '-1002088979826' },
+    { name: 'Arjuna NEET Tests', id: '-1002087786928' },
+    { name: 'Yakeen NEET Tests', id: '-1002093330892' },
+  ],
+  'Other Institute Tests': [
+    { name: 'NEET KAKA JEE', id: '-1002228026902' },
+    { name: 'NEET KAKA GSB', id: '-1001890104575' },
+    { name: 'NNTS NEET KAKA JEE', id: '-1002072452401' },
+    { name: 'Aakash Test Series', id: '-1002039007496' },
+    { name: 'Newlight Test Series', id: '-1002234111514' },
+    { name: 'CLC Test Series', id: '-1002157233091' },
+    { name: 'Memoneet Test Series', id: '-1002248481833' },
+    { name: 'NEET PREP Tests', id: '-1002031105605' },
+    { name: 'NYTS Test Series', id: '-1002203041240' },
+    { name: 'Manthan Test Series', id: '-1002162784672' }
+  ],
+  'Lectures Channels': [  // New Section
+    { name: 'Lakshya NEET 1.0 2025', id: '-1002075382372' },
+    { name: 'Lakshya NEET 3.0 2025', id: '-1002186935804' },
+    { name: 'Anand Mani MBBS Lectures', id: '-1002153754909' },
+  ]
 };
 
 // Store active invite links and users who used the bot
