@@ -9,7 +9,7 @@ const moment = require('moment'); // For handling date and time
 const TOKEN = process.env.TOKEN;
 
 // Webhook URL (replace with your Render.com URL)
-const WEBHOOK_URL = 'https://your-render-url.com/' + TOKEN; 
+const WEBHOOK_URL = 'https://link-bot-by-trigo.onrender.com' + TOKEN; 
 
 // List of admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
