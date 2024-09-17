@@ -20,7 +20,7 @@ const SECTIONS = {
     { name: 'Alien NEET Test Series', id: '-1002224862570' },
     { name: 'Alien Nurture 11th', id: '-1002216495058' },
     { name: 'Alien JEE Test Series', id: '-1002024377118' },
-    { name: 'Alien Chapter Wise Test', id: '-1001111111114' },
+    { name: 'Alien Chapter Wise Test', id: '-1001995980597' },
   ],
   'PW Test Series': [
     { name: 'PW AITS Test', id: '-1002068523195' },
@@ -40,6 +40,11 @@ const SECTIONS = {
     { name: 'NEET PREP Tests', id: '-1002031105605' },
     { name: 'NYTS Test Series', id: '-1002203041240' },
     { name: 'Manthan Test Series', id: '-1002162784672' }
+  ],
+  'Lectures Channels': [  // New Section
+    { name: 'Lakshya NEET 1.0 2025', id: '-1002075382372' },
+    { name: 'Lakshya NEET 3.0 2025', id: '-1002186935804' },
+    { name: 'Anand Mani MBBS Lectures', id: '-1002153754909' },
   ]
 };
 
@@ -98,7 +103,7 @@ const resetUserLinkGeneration = () => {
 // Admin check function
 const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
-// Function to handle the user's request within a section
+// Function to handle user's request within a section and offer more links
 const handleChannelRequest = async (msg, sectionName) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -106,12 +111,12 @@ const handleChannelRequest = async (msg, sectionName) => {
   let sectionChannels = SECTIONS[sectionName];
 
   if (!sectionChannels) {
-    return bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please try again.', { parse_mode: 'HTML' });
+    return bot.sendMessage(chatId, '❌ <b>Oops! Invalid section name!</b> Please try again. 🌟', { parse_mode: 'HTML' });
   }
 
-  let channelList = `
-✨ <b><u>Choose Your Channel from the ${sectionName}</u></b> ✨
-📋 <i>Select from the channels below:</i>\n`;
+  let channelList = 
+`✨ <b><u>Select a Channel from ${sectionName}</u></b> ✨
+📋 <i>Pick one from the options below:</i>\n`;
 
   sectionChannels.forEach((channel) => {
     channelList += `🔹 <code>${channel.name}</code>\n`;
@@ -127,40 +132,88 @@ const handleChannelRequest = async (msg, sectionName) => {
       if (inviteLink) {
         activeLinks[chatId] = { channelId: selectedChannel.id, inviteLink };
 
-        const greetingMessage = `🎉 <b>Congratulations ${msg.from.first_name}!</b> 🎉
-You’ve unlocked access to <b><u>${selectedChannel.name}</u></b>! 🌟`;
+        // Send the generated link message
+        const linkMessage = `🔗 <b>Your exclusive invite link:</b> <code>${inviteLink}</code>
+⏳ <i>This link expires in <b>5 minutes</b>, so join quickly before it’s too late!</i>`;
 
-        bot.sendMessage(chatId, greetingMessage, { parse_mode: 'HTML' });
+        const linkMessageSent = await bot.sendMessage(chatId, linkMessage, { parse_mode: 'HTML' });
 
-        const linkMessage = `🔗 <b>Your invite link:</b> <code>${inviteLink}</code>
-⏳ <i>This link will expire in <b>5 minutes</b>!</i>`;
+        // Send the further link generation message in a separate message
+        const furtherLinkMessage = `💡 Want more links? Click "Yes" below to get more links or "No" to end the session. 💡`;
 
-        bot.sendMessage(chatId, linkMessage, { parse_mode: 'HTML' });
+        const furtherLinkMessageSent = await bot.sendMessage(chatId, furtherLinkMessage, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Yes', callback_data: 'more_links' }],
+              [{ text: 'No', callback_data: 'end_session' }]
+            ]
+          }
+        });
+
+        // Store message IDs to delete later
+        const messageId = furtherLinkMessageSent.message_id;
+        const linkMessageId = linkMessageSent.message_id;
 
         // Revoke the invite link after 5 minutes
         setTimeout(async () => {
           await revokeInviteLink(selectedChannel.id, inviteLink);
-          bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired!</b>`, { parse_mode: 'HTML' });
+          bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired! 🕓</b>`, { parse_mode: 'HTML' });
           delete activeLinks[chatId];
         }, 300000);  // 5 minutes
+
+        // Handle callback queries for generating more links or ending the session
+        bot.on('callback_query', async (callbackQuery) => {
+          const chatId = callbackQuery.message.chat.id;
+          const data = callbackQuery.data;
+
+          // Delete the message with further link options
+          await bot.deleteMessage(chatId, messageId);
+
+          if (data === 'more_links') {
+            // Check if the user has reached their daily limit
+            if (!isAdmin(callbackQuery.from.id)) {
+              const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
+              if (userGeneration.count >= 7) {
+                return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
+              }
+
+              // Increment the user's link generation count
+              userLinkGeneration[callbackQuery.from.id] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+            }
+
+            // Restart the process to generate more links
+            bot.sendMessage(chatId, '✨ <b>Select your section to get more links:</b> ✨', { parse_mode: 'HTML' });
+
+            let sectionList = 
+`📋 <i>Pick one from the sections below:</i>\n`;
+
+            Object.keys(SECTIONS).forEach((section) => {
+              sectionList += `🔹 <code>${section}</code>\n`;
+            });
+
+            bot.sendMessage(chatId, sectionList, { parse_mode: 'HTML' });
+
+            bot.once('message', async (response) => {
+              const selectedSection = Object.keys(SECTIONS).find(section => section.toLowerCase() === response.text.toLowerCase());
+              if (selectedSection) {
+                handleChannelRequest(callbackQuery.message, selectedSection);
+              } else {
+                bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
+              }
+            });
+
+          } else if (data === 'end_session') {
+            bot.sendMessage(chatId, '🚪 <b>You have ended the link generation session.</b> Thank you!', { parse_mode: 'HTML' });
+          }
+        });
+
       } else {
-        bot.sendMessage(chatId, '⚠️ <b>Error generating the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
+        bot.sendMessage(chatId, '⚠️ <b>Oops! Something went wrong while generating the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
       }
     } else {
-      bot.sendMessage(chatId, '❌ <b>Invalid channel name!</b> Please try again.', { parse_mode: 'HTML' });
+      bot.sendMessage(chatId, '❌ <b>Invalid channel name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
     }
-
-    // Prompt for another channel in the same section
-    bot.sendMessage(chatId, '🔄 <b>Would you like to select another channel from this section?</b> Type the channel name or /exit to switch sections.', { parse_mode: 'HTML' });
-
-    // Handle response for selecting another channel or exiting
-    bot.once('message', (response) => {
-      if (response.text.toLowerCase() === '/exit') {
-        return bot.sendMessage(chatId, '🔄 <b>You have exited the section. Type /tlink to choose a new section.</b>', { parse_mode: 'HTML' });
-      }
-
-      handleChannelRequest(response, sectionName); // Recur to handle another channel request
-    });
   });
 };
 
@@ -178,19 +231,22 @@ bot.onText(/\/tlink/, async (msg) => {
   // Reset user link generation count if needed
   resetUserLinkGeneration();
 
-  // Check if the user has exceeded the daily limit
-  const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
-  if (userGeneration.count >= 7) {
-    return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> Please try again tomorrow. 🌅', { parse_mode: 'HTML' });
-  }
+  // Check if the user is an admin
+  if (!isAdmin(userId)) {
+    // Check if the user has exceeded the daily limit
+    const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
+    if (userGeneration.count >= 7) {
+      return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
+    }
 
-  // Increment the user's link generation count
-  userLinkGeneration[userId] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+    // Increment the user's link generation count
+    userLinkGeneration[userId] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+  }
 
   // Build a formatted section list
   let sectionList = `
-✨ <b><u>Choose Your Section to Receive Your Invite Link</u></b> ✨
-📋 <i>Select from the sections below:</i>\n`;
+✨ <b><u>Select Your Section to Get an Invite Link</u></b> ✨
+📋 <i>Pick one from the sections below:</i>\n`;
 
   Object.keys(SECTIONS).forEach((section) => {
     sectionList += `🔹 <code>${section}</code>\n`;
@@ -203,24 +259,35 @@ bot.onText(/\/tlink/, async (msg) => {
     if (selectedSection) {
       handleChannelRequest(msg, selectedSection);
     } else {
-      bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please try again.', { parse_mode: 'HTML' });
+      bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
     }
   });
 });
 
-// Admin-only command: /status
-bot.onText(/\/status/, (msg) => {
-  const userId = msg.from.id;
-  if (!isAdmin(userId)) {
+// Admin-only command: /stats
+bot.onText(/\/stats/, async (msg) => {
+  const adminId = msg.from.id;
+
+  if (!isAdmin(adminId)) {
     return bot.sendMessage(msg.chat.id, '🚫 <b>You are not authorized to use this command.</b>', { parse_mode: 'HTML' });
   }
 
-  const statusMessage = `
-📊 <b>Bot Status:</b>
-👥 <b>Total users:</b> ${userUsageCount}
-🔗 <b>Active links:</b> ${Object.keys(activeLinks).length}
-📡 <b>Total sections:</b> ${Object.keys(SECTIONS).length}
-  `;
+  // Get total number of users who used the bot
+  const totalUsers = usedUsers.size;
+
+  // Get total number of active links
+  const totalActiveLinks = Object.keys(activeLinks).length;
+
+  // Get total number of sections (channels categories)
+  const totalSections = Object.keys(SECTIONS).length;
+
+  // Construct the status message
+  const statusMessage = 
+    `📊 <b>Bot Statistics:</b>
+    👥 <b>Total users who used the bot:</b> ${totalUsers}
+    🔗 <b>Total active invite links:</b> ${totalActiveLinks}
+    📡 <b>Total sections (channels categories):</b> ${totalSections}`;
+
   bot.sendMessage(msg.chat.id, statusMessage, { parse_mode: 'HTML' });
 });
 
@@ -249,11 +316,53 @@ bot.onText(/\/broadcast (.+)/, async (msg, match) => {
     try {
       await bot.sendMessage(user, messageText, { parse_mode: 'HTML' });
     } catch (error) {
-      console.error(`Failed to broadcast message to user ${user}: ${error.message}`);
+      if (error.response && error.response.statusCode === 403) {
+        // If error code 403, it's possible the user has blocked the bot
+        blockedUsers.add(user);
+        console.log(`User ${user} has blocked the bot.`);
+      } else {
+        console.error(`Failed to broadcast message to user ${user}: ${error.message}`);
+      }
     }
   }
 
   bot.sendMessage(msg.chat.id, '📣 <b>Broadcast message sent to all users.</b>', { parse_mode: 'HTML' });
+});
+
+// Command: /start
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  
+  const welcomeMessage = `
+  👋 <b>Welcome, ${msg.from.first_name}!</b>
+  🚀 <i>I'm here to help you generate invite links for various TeamTriGO's channels.</i>
+  
+  🔗 Your gateway to our exclusive channels! 🔗
+
+Type /tlink to receive your personal invite link.
+
+🚀 Pro tip: Don’t forget to join our backup at @URSTRIGO! 🌟
+  `;
+
+  bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
+});
+
+// Admin-only command: /resetlimit
+bot.onText(/\/resetlimit (\d+)/, (msg, match) => {
+  const adminId = msg.from.id;
+  const targetUserId = parseInt(match[1]); // Extract the user ID to reset
+
+  if (!isAdmin(adminId)) {
+    return bot.sendMessage(msg.chat.id, '🚫 <b>You are not authorized to use this command.</b>', { parse_mode: 'HTML' });
+  }
+
+  if (userLinkGeneration[targetUserId]) {
+    // Reset the link generation count but keep the reset date to today's date
+    userLinkGeneration[targetUserId] = { count: 0, resetDate: moment().startOf('day').toDate() };
+    bot.sendMessage(msg.chat.id, `✅ <b>User ${targetUserId}'s link generation limit has been reset.</b>`, { parse_mode: 'HTML' });
+  } else {
+    bot.sendMessage(msg.chat.id, `⚠️ <b>No record found for user ${targetUserId}.</b>`, { parse_mode: 'HTML' });
+  }
 });
 
 // Log when the bot starts
