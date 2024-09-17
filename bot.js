@@ -187,35 +187,6 @@ const handleChannelRequest = async (msg, sectionName) => {
           bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired!</b>`, { parse_mode: 'HTML' });
           delete activeLinks[chatId];
         }, 300000); // 5 minutes
-
-        // Handle callback queries for generating more links or ending the session
-        bot.on('callback_query', async (callbackQuery) => {
-          const chatId = callbackQuery.message.chat.id;
-          const data = callbackQuery.data;
-          if (data.startsWith('more_links_')) {
-            const section = data.split('_').slice(1).join('_');
-            if (!isAdmin(userId)) {
-              const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
-              if (moment().isAfter(userGeneration.resetDate)) {
-                userGeneration.count = 0;
-                userGeneration.resetDate = moment().startOf('day').toDate();
-              }
-
-              if (userGeneration.count >= 7) {
-                return bot.sendMessage(chatId, '❌ <b>You have reached your daily limit of 7 links. Please try again tomorrow.</b>', { parse_mode: 'HTML' });
-              }
-
-              // Update user link generation data
-              userGeneration.count++;
-              userLinkGeneration[callbackQuery.from.id] = userGeneration;
-            }
-
-            // Generate more links from the same section
-            await handleChannelRequest(callbackQuery.message, section);
-          } else if (data === 'end_session') {
-            bot.sendMessage(chatId, '🛑 <b>Session ended. If you need more links, you can request them again.</b>', { parse_mode: 'HTML' });
-          }
-        });
       } else {
         bot.sendMessage(chatId, '❌ <b>Failed to generate the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
       }
@@ -224,6 +195,40 @@ const handleChannelRequest = async (msg, sectionName) => {
     }
   });
 };
+
+// Handle callback queries
+bot.on('callback_query', async (callbackQuery) => {
+  const { data, message } = callbackQuery;
+  const userId = callbackQuery.from.id;
+  const chatId = message.chat.id;
+
+  if (data.startsWith('more_links_')) {
+    const section = data.split('_').slice(1).join('_');
+
+    if (!isAdmin(userId)) {
+      const userGeneration = userLinkGeneration[userId] || { count: 0, resetDate: moment().startOf('day').toDate() };
+      if (moment().isAfter(userGeneration.resetDate)) {
+        userGeneration.count = 0;
+        userGeneration.resetDate = moment().startOf('day').toDate();
+      }
+
+      if (userGeneration.count >= 7) {
+        return bot.sendMessage(chatId, '❌ <b>You have reached your daily limit of 7 links. Please try again tomorrow.</b>', { parse_mode: 'HTML' });
+      }
+
+      // Update user link generation data
+      userGeneration.count++;
+      userLinkGeneration[callbackQuery.from.id] = userGeneration;
+    }
+
+    // Generate more links from the same section
+    await handleChannelRequest(callbackQuery.message, section);
+  } else if (data === 'end_session') {
+    bot.sendMessage(chatId, '🛑 <b>Session ended. If you need more links, you can request them again.</b>', { parse_mode: 'HTML' });
+  } else {
+    bot.sendMessage(chatId, '❌ <b>Unknown command. Please try again.</b>', { parse_mode: 'HTML' });
+  }
+});
 
 // Command handlers
 bot.onText(/\/start/, (msg) => {
