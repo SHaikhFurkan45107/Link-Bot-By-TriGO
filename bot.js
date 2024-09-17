@@ -27,7 +27,7 @@ const TOKEN = process.env.TOKEN;
 const ADMIN_IDS = [6020805369, 6013132170];
 
 // Define your webhook URL
-const webhookUrl = 'https://your-render-app-url.com'; // Replace with your actual Render URL
+const webhookUrl = 'https://link-bot-by-trigo.onrender.com'; // Replace with your actual Render URL
 
 // Initialize the bot with webhook
 const bot = new TelegramBot(TOKEN, { webHook: true });
