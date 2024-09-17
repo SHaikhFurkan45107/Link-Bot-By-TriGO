@@ -1,15 +1,15 @@
 {
-  "name": "your-bot-name",
+  "name": "telegram-bot",
   "version": "1.0.0",
+  "description": "A Telegram bot",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-telegram-bot-api": "^0.58.0",
-    "axios": "^1.5.0",
-    "moment": "^2.29.4",
-    "body-parser": "^1.20.2"
+    "axios": "^0.21.1",
+    "node-telegram-bot-api": "^0.51.0",
+    "moment": "^2.29.1",
+    "dotenv": "^8.2.0"
   }
 }
