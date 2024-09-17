@@ -8,11 +8,15 @@ const moment = require('moment'); // For handling date and time
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
 
+// Webhook URL (replace with your Render.com URL)
+const WEBHOOK_URL = 'https://your-render-url.com/' + TOKEN; 
+
 // List of admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
 
-// Initialize the bot
-const bot = new TelegramBot(TOKEN, { polling: true });
+// Initialize the bot with webhook
+const bot = new TelegramBot(TOKEN);
+bot.setWebHook(WEBHOOK_URL);
 
 // Sections with channels
 const SECTIONS = {
@@ -262,6 +266,26 @@ bot.onText(/\/tlink/, async (msg) => {
       bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
     }
   });
+});
+
+// Handle errors
+bot.on('polling_error', (error) => {
+  console.error(`⚠️ Polling Error: ${error.message}`);
+});
+
+// Set up Express server for webhook handling
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/' + TOKEN, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Server is running on port ${process.env.PORT || 3000}`);
 });
 
 // Admin-only command: /stats
