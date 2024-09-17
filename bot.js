@@ -273,10 +273,6 @@ app.post('/' + TOKEN, (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log(Server is running on port ${process.env.PORT || 3000});
-});
-
 // Admin-only command: /stats
 bot.onText(/\/stats/, async (msg) => {
   const adminId = msg.from.id;
