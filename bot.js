@@ -7,7 +7,7 @@ require('dotenv').config();
 
 // Telegram Bot Token
 const TOKEN = process.env.TOKEN;
-const bot = new TelegramBot(TOKEN);
+const bot = new TelegramBot(TOKEN, { polling: true });
 
 // Create an Express app
 const app = express();
@@ -22,7 +22,7 @@ app.post('/webhook', (req, res) => {
 // Set the webhook for the Telegram bot
 const setWebhook = async () => {
   try {
-    await bot.setWebHook('https://link-bot-by-trigo.onrender.com');
+    await bot.setWebHook('https://link-bot-by-trigo.onrender.com/webhook');
     console.log('Webhook set!');
   } catch (error) {
     console.error('Error setting webhook:', error);
