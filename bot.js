@@ -39,10 +39,6 @@ app.listen(PORT, () => {
 // List of admin user IDs
 const ADMIN_IDS = [6020805369, 6013132170]; // Replace with actual admin IDs
 
-// Initialize the bot with webhook
-const bot = new TelegramBot(TOKEN);
-bot.setWebHook(WEBHOOK_URL);
-
 // Sections with channels
 const SECTIONS = {
   'Alien Test Series': [
