@@ -66,7 +66,7 @@ const SECTIONS = {
     { name: 'NYTS Test Series', id: '-1002203041240' },
     { name: 'Manthan Test Series', id: '-1002162784672' }
   ],
-  'Lectures Channels': [  // New Section
+  'Lectures Channels': [
     { name: 'Lakshya NEET 1.0 2025', id: '-1002075382372' },
     { name: 'Lakshya NEET 3.0 2025', id: '-1002186935804' },
     { name: 'Anand Mani MBBS Lectures', id: '-1002153754909' },
@@ -75,7 +75,6 @@ const SECTIONS = {
 
 // Store active invite links and users who used the bot
 let activeLinks = {}; // Structure: { chatId: { channelId, inviteLink } }
-let userUsageCount = 0;
 const usedUsers = new Set(); // To track users who used the bot
 
 // Track user's link generation
@@ -113,6 +112,7 @@ const revokeAllInviteLinks = async () => {
   for (const { channelId, inviteLink } of Object.values(activeLinks)) {
     await revokeInviteLink(channelId, inviteLink);
   }
+  activeLinks = {};  // Clear the active links
 };
 
 // Function: Reset user link generation count daily
@@ -196,48 +196,30 @@ const handleChannelRequest = async (msg, sectionName) => {
           await bot.deleteMessage(chatId, messageId);
 
           if (data === 'more_links') {
-            // Check if the user has reached their daily limit
-            if (!isAdmin(callbackQuery.from.id)) {
-              const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
-              if (userGeneration.count >= 7) {
-                return bot.sendMessage(chatId, '⚠️ <b>You’ve reached your daily limit of generating invite links.</b> 🚫 Please try again tomorrow! 🌅', { parse_mode: 'HTML' });
-              }
-
-              // Increment the user's link generation count
-              userLinkGeneration[callbackQuery.from.id] = { count: userGeneration.count + 1, resetDate: userGeneration.resetDate };
+            // Check if the user has reached the limit
+            if (userLinkGeneration[userId] && userLinkGeneration[userId].count >= 7) {
+              bot.sendMessage(chatId, '❌ <b>You have reached your daily limit for generating links.</b>', { parse_mode: 'HTML' });
+              return;
             }
 
-            // Restart the process to generate more links
-            bot.sendMessage(chatId, '✨ <b>Select your section to get more links:</b> ✨', { parse_mode: 'HTML' });
+            if (userLinkGeneration[userId]) {
+              userLinkGeneration[userId].count += 1;
+            } else {
+              userLinkGeneration[userId] = { count: 1, resetDate: moment().startOf('day').toDate() };
+            }
 
-            let sectionList = 
-`📋 <i>Pick one from the sections below:</i>\n`;
-
-            Object.keys(SECTIONS).forEach((section) => {
-              sectionList += `🔹 <code>${section}</code>\n`;
-            });
-
-            bot.sendMessage(chatId, sectionList, { parse_mode: 'HTML' });
-
-            bot.once('message', async (response) => {
-              const selectedSection = Object.keys(SECTIONS).find(section => section.toLowerCase() === response.text.toLowerCase());
-              if (selectedSection) {
-                handleChannelRequest(callbackQuery.message, selectedSection);
-              } else {
-                bot.sendMessage(chatId, '❌ <b>Invalid section name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
-              }
-            });
-
+            // Allow user to choose another channel from the same section
+            bot.sendMessage(chatId, `🌀 <b>Choose another channel from the ${sectionName} section:</b>`, { parse_mode: 'HTML' });
+            handleChannelRequest(msg, sectionName);
           } else if (data === 'end_session') {
-            bot.sendMessage(chatId, '🚪 <b>You have ended the link generation session.</b> Thank you!', { parse_mode: 'HTML' });
+            bot.sendMessage(chatId, '✅ <b>Session ended. You can generate more links later.</b>', { parse_mode: 'HTML' });
           }
         });
-
       } else {
-        bot.sendMessage(chatId, '⚠️ <b>Oops! Something went wrong while generating the invite link. Please try again later.</b>', { parse_mode: 'HTML' });
+        bot.sendMessage(chatId, '❌ <b>Failed to generate invite link. Please try again later.</b>', { parse_mode: 'HTML' });
       }
     } else {
-      bot.sendMessage(chatId, '❌ <b>Invalid channel name!</b> Please double-check and try again. 💬', { parse_mode: 'HTML' });
+      bot.sendMessage(chatId, '❌ <b>Invalid channel name. Please choose from the listed options.</b>', { parse_mode: 'HTML' });
     }
   });
 };
