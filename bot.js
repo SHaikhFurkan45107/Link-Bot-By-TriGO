@@ -80,6 +80,9 @@ const usedUsers = new Set(); // To track users who used the bot
 // Track user's link generation
 const userLinkGeneration = {}; // Structure: { userId: { count, resetDate } }
 
+// Track user states for link generation
+const userStates = {}; // Structure: { userId: { sectionName, currentChannelIndex } }
+
 // Function: Create a unique invite link for the channel
 const createInviteLink = async (channelId) => {
   try {
@@ -148,7 +151,8 @@ const handleChannelRequest = async (msg, sectionName) => {
 
   bot.sendMessage(chatId, channelList, { parse_mode: 'HTML' });
 
-  // Save state to handle multiple requests
+  userStates[userId] = { sectionName, currentChannelIndex: 0 };
+
   bot.once('message', async (response) => {
     const selectedChannel = sectionChannels.find(channel => channel.name.toLowerCase().includes(response.text.toLowerCase()));
     if (selectedChannel) {
@@ -188,74 +192,55 @@ const handleChannelRequest = async (msg, sectionName) => {
 
         // Handle callback queries for generating more links or ending the session
         bot.on('callback_query', async (callbackQuery) => {
-          const chatId = callbackQuery.message.chat.id;
-          const data = callbackQuery.data;
+          const { data, message } = callbackQuery;
+          const userId = callbackQuery.from.id;
 
-          // Delete the message with further link options
-          await bot.deleteMessage(chatId, messageId);
+          if (message.message_id === messageId) {
+            if (data === 'more_links') {
+              const currentState = userStates[userId];
+              if (currentState) {
+                // Continue generating links from the same section
+                userStates[userId].currentChannelIndex++;
+                const nextChannel = sectionChannels[userStates[userId].currentChannelIndex];
+                
+                if (nextChannel) {
+                  const newInviteLink = await createInviteLink(nextChannel.id);
+                  if (newInviteLink) {
+                    activeLinks[chatId] = { channelId: nextChannel.id, inviteLink: newInviteLink };
 
-          if (data === 'more_links') {
-            // Check if the user has reached their daily limit
-            if (!isAdmin(callbackQuery.from.id)) {
-              const userGeneration = userLinkGeneration[callbackQuery.from.id] || { count: 0, resetDate: moment().startOf('day').toDate() };
-
-              if (userGeneration.resetDate < moment().startOf('day').toDate()) {
-                userGeneration.count = 0;
-                userGeneration.resetDate = moment().startOf('day').toDate();
-              }
-
-              if (userGeneration.count >= 7) {
-                bot.sendMessage(chatId, '⚠️ <b>You have reached your daily link generation limit!</b> Please try again tomorrow.', { parse_mode: 'HTML' });
-                return;
-              }
-
-              userGeneration.count++;
-              userLinkGeneration[callbackQuery.from.id] = userGeneration;
-            }
-
-            // Ask the user to select a channel again
-            bot.sendMessage(chatId, `🌀 <b>Select a Channel from ${sectionName}</b>`, { parse_mode: 'HTML' });
-
-            // Save state to handle multiple requests
-            bot.once('message', async (response) => {
-              const selectedChannel = sectionChannels.find(channel => channel.name.toLowerCase().includes(response.text.toLowerCase()));
-              if (selectedChannel) {
-                const inviteLink = await createInviteLink(selectedChannel.id);
-                if (inviteLink) {
-                  activeLinks[chatId] = { channelId: selectedChannel.id, inviteLink };
-
-                  const linkMessage = `🔗 <b>Your exclusive invite link:</b> <code>${inviteLink}</code>
+                    const nextLinkMessage = `🔗 <b>Your new invite link:</b> <code>${newInviteLink}</code>
 ⏳ <i>This link expires in <b>5 minutes</b>, so join quickly before it’s too late!</i>`;
 
-                  await bot.sendMessage(chatId, linkMessage, { parse_mode: 'HTML' });
+                    await bot.sendMessage(chatId, nextLinkMessage, { parse_mode: 'HTML' });
 
-                  const furtherLinkMessage = `💡 Want more links? Click "Yes" below to get more links or "No" to end the session. 💡`;
+                    const furtherLinkMessage = `💡 Want more links? Click "Yes" below to get more links or "No" to end the session. 💡`;
 
-                  const furtherLinkMessageSent = await bot.sendMessage(chatId, furtherLinkMessage, {
-                    parse_mode: 'HTML',
-                    reply_markup: {
-                      inline_keyboard: [
-                        [{ text: 'Yes', callback_data: 'more_links' }],
-                        [{ text: 'No', callback_data: 'end_session' }]
-                      ]
-                    }
-                  });
+                    await bot.sendMessage(chatId, furtherLinkMessage, {
+                      parse_mode: 'HTML',
+                      reply_markup: {
+                        inline_keyboard: [
+                          [{ text: 'Yes', callback_data: 'more_links' }],
+                          [{ text: 'No', callback_data: 'end_session' }]
+                        ]
+                      }
+                    });
 
-                  const furtherLinkMessageId = furtherLinkMessageSent.message_id;
+                    setTimeout(async () => {
+                      await revokeInviteLink(nextChannel.id, newInviteLink);
+                      bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${nextChannel.name}</code> has expired! 🕓</b>`, { parse_mode: 'HTML' });
+                      delete activeLinks[chatId];
+                    }, 300000);  // 5 minutes
 
-                  setTimeout(async () => {
-                    await revokeInviteLink(selectedChannel.id, inviteLink);
-                    bot.sendMessage(chatId, `⏳ <b>The invite link for <code>${selectedChannel.name}</code> has expired! 🕓</b>`, { parse_mode: 'HTML' });
-                    delete activeLinks[chatId];
-                  }, 300000);  // 5 minutes
-
+                  }
+                } else {
+                  bot.sendMessage(chatId, `⚠️ <b>No more channels left in the ${sectionName} section.</b>`);
+                  delete userStates[userId];
                 }
               }
-            });
-
-          } else if (data === 'end_session') {
-            bot.sendMessage(chatId, 'Thank you for using the bot. Have a great day! 🌟');
-            delete activeLinks[chatId];
+            } else if (data === 'end_session') {
+              bot.sendMessage(chatId, 'Thank you for using the bot. Have a great day! 🌟');
+              delete userStates[userId];
+            }
           }
         });
       }
