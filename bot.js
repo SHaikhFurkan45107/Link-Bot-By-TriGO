@@ -96,27 +96,27 @@ const createInviteLink = async (channelId) => {
   }
 };
 
-const userLinkUsage = {};
+// Create an object to store user link counts
+const userLinkCounts = {};
 
-// Inside your callback or function
+// Inside your callback function
 bot.on('callback_query', (callbackQuery) => {
     const userId = callbackQuery.from.id;
 
-    // Initialize the usage count if it doesn't exist
-    if (!userLinkUsage[userId]) {
-        userLinkUsage[userId] = 0;
+    // Initialize the user's usage count if it doesn't exist
+    if (!userLinkCounts[userId]) {
+        userLinkCounts[userId] = 0;
     }
 
-    // Now, you can safely use userUsageCount
-    const userUsageCount = userLinkUsage[userId];
+    // Now you can safely use userUsageCount
+    const userUsageCount = userLinkCounts[userId];
 
-    // Your existing logic for handling link generation
     if (userUsageCount < 7) {
         // Allow link generation
-        userLinkUsage[userId] += 1;
-        // Generate link logic...
+        userLinkCounts[userId] += 1;
+        // Generate the link logic...
     } else {
-        // Send a message saying the limit has been reached
+        // User has reached the limit
         bot.sendMessage(userId, 'You have reached your daily limit of 7 links.');
     }
 });
