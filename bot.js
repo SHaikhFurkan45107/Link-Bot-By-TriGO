@@ -266,10 +266,6 @@ bot.on('polling_error', (error) => {
   console.error(`⚠️ Polling Error: ${error.message}`);
 });
 
-// Set up Express server for webhook handling
-const express = require('express');
-const app = express();
-
 app.use(express.json());
 
 app.post('/' + TOKEN, (req, res) => {
