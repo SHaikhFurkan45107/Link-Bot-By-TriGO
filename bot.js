@@ -74,23 +74,25 @@ const SECTIONS = {
 };
 
 // Store active invite links and users who used the bot
-let activeLinks = {}; // Structure: { chatId: { channelId, inviteLink } }
-const usedUsers = new Set(); // To track users who used the bot
+let activeLinks = {};
+const usedUsers = new Set();
 
 // Track user's link generation
-const userLinkGeneration = {}; // Structure: { userId: { count, resetDate } }
+const userLinkGeneration = {};
 
 // Function: Create a unique invite link for the channel
 const createInviteLink = async (channelId) => {
   try {
+    console.log(`Creating invite link for channel ${channelId}`);
     const response = await axios.post(`https://api.telegram.org/bot${TOKEN}/createChatInviteLink`, {
       chat_id: channelId,
       expire_date: Math.floor(Date.now() / 1000) + 300,  // Link expires in 5 minutes
-      member_limit: 1  // One user per invite link
+      member_limit: 1
     });
+    console.log(`Invite link created: ${response.data.result.invite_link}`);
     return response.data.result.invite_link;
   } catch (error) {
-    console.error(`⚠️ Error creating invite link: ${error.message}`);
+    console.error(`Error creating invite link: ${error.message}`);
     return null;
   }
 };
@@ -98,21 +100,23 @@ const createInviteLink = async (channelId) => {
 // Function: Revoke an invite link for the specified channel
 const revokeInviteLink = async (channelId, inviteLink) => {
   try {
+    console.log(`Revoking invite link ${inviteLink} for channel ${channelId}`);
     await axios.post(`https://api.telegram.org/bot${TOKEN}/revokeChatInviteLink`, {
       chat_id: channelId,
       invite_link: inviteLink
     });
   } catch (error) {
-    console.error(`⚠️ Error revoking invite link: ${error.message}`);
+    console.error(`Error revoking invite link: ${error.message}`);
   }
 };
 
 // Function: Revoke all active invite links
 const revokeAllInviteLinks = async () => {
+  console.log('Revoking all invite links');
   for (const { channelId, inviteLink } of Object.values(activeLinks)) {
     await revokeInviteLink(channelId, inviteLink);
   }
-  activeLinks = {};  // Clear the active links
+  activeLinks = {};
 };
 
 // Function: Reset user link generation count daily
@@ -193,7 +197,11 @@ const handleChannelRequest = async (msg, sectionName) => {
           const data = callbackQuery.data;
 
           // Delete the message with further link options
-          await bot.deleteMessage(chatId, messageId);
+          try {
+            await bot.deleteMessage(chatId, messageId);
+          } catch (error) {
+            console.error('Error deleting message:', error);
+          }
 
           if (data === 'more_links') {
             // Check if the user has reached the limit
