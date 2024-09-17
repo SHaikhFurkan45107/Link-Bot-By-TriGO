@@ -22,7 +22,7 @@ app.post('/webhook', (req, res) => {
 // Set the webhook for the Telegram bot
 const setWebhook = async () => {
   try {
-    await bot.setWebHook('https://your-domain.com/webhook');
+    await bot.setWebHook('https://link-bot-by-trigo.onrender.com');
     console.log('Webhook set!');
   } catch (error) {
     console.error('Error setting webhook:', error);
