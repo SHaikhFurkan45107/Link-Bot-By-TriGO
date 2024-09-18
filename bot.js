@@ -93,8 +93,12 @@ const createInviteLink = async (channelId) => {
       expire_date: Math.floor(Date.now() / 1000) + 300,  // Link expires in 5 minutes
       member_limit: 1  // One user per invite link
     });
-    console.log(`Invite link created: ${response.data.result.invite_link}`);
-    return response.data.result.invite_link;
+    if (response.data.ok) {
+      console.log(`Invite link created: ${response.data.result.invite_link}`);
+      return response.data.result.invite_link;
+    } else {
+      throw new Error(`Failed to create invite link: ${response.data.description}`);
+    }
   } catch (error) {
     console.error(`⚠️ Error creating invite link: ${error.message}`);
     return null;
