@@ -325,16 +325,17 @@ bot.onText(/\/broadcast (.+)/, async (msg, match) => {
     return bot.sendMessage(chatId, '❌ <b>You don’t have permission to use this command.</b> Only admins can broadcast messages. 🚫', { parse_mode: 'HTML' });
   }
 
-  const usersToSend = Array.from(usedUsers); // Use Set to avoid duplicates
+  const usersToSend = Array.from(usedUsers); // Convert Set to array to avoid duplicates
 
   for (const user of usersToSend) {
     try {
       await bot.sendMessage(user, `📢 <b>Broadcast message:</b>\n\n${messageText}`, { parse_mode: 'HTML' });
     } catch (error) {
-      console.error(`⚠️ Error sending message to user ${user}: ${error.message}`);
       if (error.response && error.response.statusCode === 403) {
-        console.log(`User ${user} blocked the bot. Removing from broadcast list.`);
+        console.error(`⚠️ User ${user} blocked the bot. Removing from the broadcast list.`);
         usedUsers.delete(user); // Remove user from the broadcast list
+      } else {
+        console.error(`⚠️ Error sending message to user ${user}: ${error.message}`);
       }
     }
   }
